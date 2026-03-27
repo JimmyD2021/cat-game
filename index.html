@@ -5,75 +5,74 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cat Memory Game</title>
 <style>
-  body {
-    margin: 0;
-    font-family: sans-serif;
-    background-color: #ff99c8; /* darker pink background */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    min-height: 100vh;
-    padding: 20px 0;
-  }
-  h1 {
-    color: #fff;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    width: 90vw;
-    max-width: 600px;
-  }
-  .tile {
-    background-color: #ffe6f0;
-    aspect-ratio: 1 / 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    border-radius: 8px;
-    overflow: hidden;
-    position: relative;
-  }
-  .tile img {
-    width: 90%;
-    height: 90%;
-    object-fit: cover;
-    display: none;
-  }
-  .tile.flipped img {
-    display: block;
-  }
-  /* Modal overlay */
-  .modal-overlay {
-    position: fixed;
-    top:0; left:0;
-    width:100%;
-    height:100%;
-    background: rgba(0,0,0,0.5);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 10;
-  }
-  .modal {
-    background: #fff;
-    padding: 20px 30px;
-    border-radius: 12px;
-    text-align: center;
-  }
-  .modal button {
-    margin: 10px;
-    padding: 10px 20px;
-    border:none;
-    border-radius: 8px;
-    cursor: pointer;
-    background: #ff99c8;
-    color: #fff;
-    font-weight: bold;
-  }
+body {
+  margin: 0;
+  font-family: sans-serif;
+  background-color: #ff99c8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  padding: 20px 0;
+}
+h1 {
+  color: #fff;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  width: 90vw;
+  max-width: 600px;
+}
+.tile {
+  background-color: #ffe6f0;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+.tile img {
+  width: 90%;
+  height: 90%;
+  object-fit: cover;
+  display: none;
+}
+.tile.flipped img {
+  display: block;
+}
+.modal-overlay {
+  position: fixed;
+  top:0; left:0;
+  width:100%;
+  height:100%;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+.modal {
+  background: #fff;
+  padding: 20px 30px;
+  border-radius: 12px;
+  text-align: center;
+}
+.modal button {
+  margin: 10px;
+  padding: 10px 20px;
+  border:none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #ff99c8;
+  color: #fff;
+  font-weight: bold;
+}
 </style>
 </head>
 <body>
@@ -81,7 +80,6 @@
 <h1>Cat Memory Game</h1>
 <div class="grid"></div>
 
-<!-- Modal -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <h2>Round Complete!</h2>
@@ -90,7 +88,6 @@
   </div>
 </div>
 
-<!-- Sounds -->
 <audio id="meow" src="meow.mp3"></audio>
 <audio id="wrong" src="wrong.mp3"></audio>
 <audio id="purr" src="purr.mp3"></audio>
@@ -106,13 +103,11 @@ const meow = document.getElementById('meow');
 const wrong = document.getElementById('wrong');
 const purr = document.getElementById('purr');
 
-// Replace these URLs with your local GIFs or add them to the folder
 const catGIFs = [
-  'cat1.gif', 'cat2.gif', 'cat3.gif', 'cat4.gif',
-  'cat5.gif', 'cat6.gif', 'cat7.gif', 'cat8.gif'
+  'cat1.gif','cat2.gif','cat3.gif','cat4.gif',
+  'cat5.gif','cat6.gif','cat7.gif','cat8.gif'
 ];
 
-// Double array for pairs
 let tilesArray = [...catGIFs, ...catGIFs];
 let firstTile = null;
 let secondTile = null;
@@ -123,12 +118,13 @@ function shuffle(array) {
   return array.sort(() => 0.5 - Math.random());
 }
 
-function playSound(audio, duration = 1200) {
+function playSound(audio, duration=1200){
   audio.currentTime = 0;
   audio.play().catch(()=>{});
-  setTimeout(() => { audio.pause(); audio.currentTime = 0; }, duration);
+  setTimeout(()=>{audio.pause(); audio.currentTime=0;}, duration);
 }
 
+// New function: no horizontal/vertical adjacency
 function createGrid() {
   grid.innerHTML = '';
   matchedCount = 0;
@@ -136,77 +132,96 @@ function createGrid() {
   secondTile = null;
   lock = false;
 
-  const shuffled = shuffle(tilesArray);
+  const shuffledTiles = [...tilesArray];
+  const finalTiles = [];
+  const size = 4; // 4x4 grid
 
-  shuffled.forEach(src => {
+  for (let i=0;i<size*size;i++){
+    let valid=false;
+    let attempts=0;
+    while(!valid && attempts<100){
+      const idx = Math.floor(Math.random()*shuffledTiles.length);
+      const tile = shuffledTiles[idx];
+
+      const row = Math.floor(i/size);
+      const col = i%size;
+
+      const left = col>0 ? finalTiles[i-1] : null;
+      const top = row>0 ? finalTiles[i-size] : null;
+
+      if(tile !== left && tile !== top){
+        finalTiles.push(tile);
+        shuffledTiles.splice(idx,1);
+        valid=true;
+      }
+      attempts++;
+    }
+    if(!valid){
+      finalTiles.push(shuffledTiles.pop());
+    }
+  }
+
+  finalTiles.forEach(src=>{
     const tile = document.createElement('div');
     tile.classList.add('tile');
     const img = document.createElement('img');
     img.src = src;
     tile.appendChild(img);
-    tile.addEventListener('click', () => flipTile(tile));
+    tile.addEventListener('click',()=>flipTile(tile));
     grid.appendChild(tile);
   });
 }
 
-function flipTile(tile) {
-  if (lock || tile.classList.contains('flipped')) return;
-
+function flipTile(tile){
+  if(lock || tile.classList.contains('flipped')) return;
   tile.classList.add('flipped');
 
-  if (!firstTile) {
-    firstTile = tile;
+  if(!firstTile){
+    firstTile=tile;
   } else {
-    secondTile = tile;
-    lock = true;
+    secondTile=tile;
+    lock=true;
 
     const firstImg = firstTile.querySelector('img').src;
     const secondImg = secondTile.querySelector('img').src;
 
-    if (firstImg === secondImg) {
-      playSound(meow, 1000);
-      matchedCount += 2;
-      confetti({
-        particleCount: 50,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-      firstTile = null;
-      secondTile = null;
-      lock = false;
+    if(firstImg === secondImg){
+      playSound(meow,1000);
+      matchedCount+=2;
+      confetti({particleCount:50,spread:70,origin:{y:0.6}});
+      firstTile=null;
+      secondTile=null;
+      lock=false;
 
-      if (matchedCount === tilesArray.length) {
-        playSound(purr, 2000);
+      if(matchedCount === tilesArray.length){
+        playSound(purr,2000);
         showModal();
       }
     } else {
-      playSound(wrong, 800);
-      setTimeout(() => {
+      playSound(wrong,800);
+      setTimeout(()=>{
         firstTile.classList.remove('flipped');
         secondTile.classList.remove('flipped');
-        firstTile = null;
-        secondTile = null;
-        lock = false;
-      }, 1500);
+        firstTile=null;
+        secondTile=null;
+        lock=false;
+      },1500);
     }
   }
 }
 
-function showModal() {
-  modal.style.display = 'flex';
-}
+function showModal(){ modal.style.display='flex'; }
 
-nextRoundBtn.addEventListener('click', () => {
-  modal.style.display = 'none';
+nextRoundBtn.addEventListener('click',()=>{
+  modal.style.display='none';
+  createGrid();
+});
+reshuffleBtn.addEventListener('click',()=>{
+  modal.style.display='none';
   createGrid();
 });
 
-reshuffleBtn.addEventListener('click', () => {
-  modal.style.display = 'none';
-  createGrid();
-});
-
-// Initial grid
+// initial grid
 createGrid();
 </script>
 </body>
