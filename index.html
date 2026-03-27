@@ -2,255 +2,283 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<title>Deja-Mew 🐱🐱🐱</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deja Mew</title>
-<style>
-/* Nice retro/fun font */
-@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap');
 
+<style>
 body {
+  font-family: Arial, sans-serif;
+  background: #ff85a2; /* darker pink background */
+  text-align: center;
   margin: 0;
-  font-family: 'Comic Neue', sans-serif;
-  background-color: #ff6699; /* restore previous darker pink */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  min-height: 100vh;
-  padding: 20px 0;
 }
 
 h1 {
-  color: #fff;
-  margin-bottom: 20px;
-  text-shadow: 2px 2px #ff80b3;
+  margin: 16px 0;
+  color: white;
 }
 
+/* Grid */
 .grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  width: 90vw;
+  padding: 12px;
   max-width: 600px;
-  perspective: 1000px; /* for flip effect */
+  margin: auto;
+}
+
+/* Bigger tiles on desktop */
+@media (min-width: 900px) {
+  .grid {
+    max-width: 700px;
+  }
 }
 
 .tile {
-  background-color: #ffe6f0; /* light pink tiles */
-  aspect-ratio: 1 / 1;
-  border-radius: 8px;
-  cursor: pointer;
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 0.6s;
+  aspect-ratio: 1;
+  perspective: 1000px;
 }
 
-.tile.flipped {
+.inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transition: transform 0.5s;
+  transform-style: preserve-3d;
+  border-radius: 14px;
+}
+
+.inner.flipped {
   transform: rotateY(180deg);
 }
 
-.tile img {
-  width: 90%;
-  height: 90%;
-  object-fit: cover;
-  position: absolute;
-  backface-visibility: hidden;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: block;
-}
-
-.tile::before {
-  content: "";
+/* Light pink tiles */
+.front, .back {
   position: absolute;
   width: 100%;
   height: 100%;
-  background: #ffe6f0;
-  border-radius: 8px;
+  border-radius: 14px;
   backface-visibility: hidden;
-  transform: rotateY(0deg);
 }
 
-/* Modal styles */
-.modal-overlay {
+.front {
+  background: #ffe5ec; /* near-white pink */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+}
+
+.back {
+  transform: rotateY(180deg);
+  background-size: cover;
+  background-position: center;
+}
+
+/* Modal */
+.modal {
   position: fixed;
-  top:0; left:0;
-  width:100%;
-  height:100%;
-  background: rgba(0,0,0,0.5);
-  display: none;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10;
+  visibility: hidden;
 }
-.modal {
-  background: #fff;
-  padding: 20px 30px;
-  border-radius: 12px;
+
+.modal.show {
+  visibility: visible;
+}
+
+.modal-content {
+  background: white;
+  padding: 25px;
+  border-radius: 16px;
   text-align: center;
+  animation: pop 0.3s ease;
 }
-.modal button {
+
+@keyframes pop {
+  from { transform: scale(0.7); }
+  to { transform: scale(1); }
+}
+
+button {
   margin: 10px;
-  padding: 10px 20px;
-  border:none;
-  border-radius: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  background: #ff69b4;
+  color: white;
   cursor: pointer;
-  background: #ff80b3;
-  color: #fff;
-  font-weight: bold;
 }
 </style>
 </head>
+
 <body>
 
-<h1>Deja Mew</h1>
-<div class="grid"></div>
+<h1>Deja-Mew 🐱🐱🐱</h1>
+<div class="grid" id="grid"></div>
 
-<div class="modal-overlay" id="modal">
-  <div class="modal">
-    <h2>Round Complete!</h2>
-    <button id="nextRound">Next Level</button>
-    <button id="reshuffle">Reshuffle</button>
-  </div>
-</div>
-
+<!-- Sounds (reliable sources) -->
 <audio id="meow" src="meow.mp3"></audio>
 <audio id="wrong" src="wrong.mp3"></audio>
 <audio id="purr" src="purr.mp3"></audio>
 
+<!-- Modal -->
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2>🎉 You did it!</h2>
+    <p>All the kitties found 🐱💖</p>
+    <button onclick="restart()">Play Again</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
 <script>
-const grid = document.querySelector('.grid');
-const modal = document.getElementById('modal');
-const nextRoundBtn = document.getElementById('nextRound');
-const reshuffleBtn = document.getElementById('reshuffle');
+const grid = document.getElementById("grid");
+const modal = document.getElementById("modal");
 
-const meow = document.getElementById('meow');
-const wrong = document.getElementById('wrong');
-const purr = document.getElementById('purr');
+const meow = document.getElementById("meow");
+const wrong = document.getElementById("wrong");
+const purr = document.getElementById("purr");
 
-let firstTile = null;
-let secondTile = null;
-let lock = false;
-let matchedCount = 0;
+let tiles=[], firstTile=null, secondTile=null, lockBoard=false;
+let audioReady = false;
 
-const gridSize = 4; // 4x4 grid
-let tilesArray = [];
+// Unlock audio
+function unlockAudio() {
+  if (audioReady) return;
 
-function playSound(audio, duration=1200){
-  audio.currentTime = 0;
-  audio.play().catch(()=>{});
-  setTimeout(()=>{audio.pause(); audio.currentTime=0;}, duration);
+  [meow, wrong, purr].forEach(a => {
+    a.play().then(() => {
+      a.pause();
+      a.currentTime = 0;
+    }).catch(()=>{});
+  });
+
+  audioReady = true;
 }
 
-// Fetch 8 random cat GIFs
-async function fetchCatGIFs() {
-  const res = await fetch('https://api.thecatapi.com/v1/images/search?limit=8&mime_types=gif');
-  const data = await res.json();
-  return data.map(cat=>cat.url);
+function playSound(audio, duration = 1000){ // duration in ms
+    if(!audio) return;
+    audio.currentTime = 0;
+    audio.play().catch(()=>{});
+
+    // Stop after duration
+    setTimeout(()=>{
+        audio.pause();
+        audio.currentTime = 0;
+    }, duration);
 }
 
-// Arrange so no adjacent duplicates
-function arrangeNoAdjacent(array){
-  const size = gridSize*gridSize;
-  const final = [];
-  const temp = [...array];
-  for(let i=0;i<size;i++){
-    let valid=false;
-    let attempts=0;
-    while(!valid && attempts<50){
-      const idx = Math.floor(Math.random()*temp.length);
-      const val = temp[idx];
-      const row = Math.floor(i/gridSize);
-      const col = i%gridSize;
-      const left = col>0 ? final[i-1] : null;
-      const top = row>0 ? final[i-gridSize] : null;
-      if(val!==left && val!==top){
-        final.push(val);
-        temp.splice(idx,1);
-        valid=true;
-      }
-      attempts++;
-    }
-    if(!valid) final.push(temp.pop());
+// Fetch unique GIFs
+async function getGIFs(n) {
+  const set = new Set();
+  while(set.size < n){
+    const res = await fetch(`https://api.thecatapi.com/v1/images/search?limit=${n}&mime_types=gif`);
+    const data = await res.json();
+    data.forEach(d => set.add(d.url));
   }
-  return final;
+  return [...set].slice(0,n);
 }
 
-async function createGrid(){
-  grid.innerHTML='';
-  matchedCount=0;
-  firstTile=null;
-  secondTile=null;
-  lock=false;
+function shuffle(a){ return a.sort(()=>Math.random()-0.5); }
 
-  const cats = await fetchCatGIFs();
-  tilesArray = [...cats, ...cats]; // 2 of each
-  tilesArray = arrangeNoAdjacent(tilesArray);
+async function start(){
+  const gifs = await getGIFs(8);
+  const images = shuffle([...gifs, ...gifs]);
 
-  tilesArray.forEach(src=>{
-    const tile=document.createElement('div');
-    tile.classList.add('tile');
-    const img=document.createElement('img');
-    img.src=src;
-    tile.appendChild(img);
-    tile.addEventListener('click',()=>flipTile(tile));
+  grid.innerHTML="";
+  tiles=[]; firstTile=null; secondTile=null; lockBoard=false;
+
+  images.forEach(url=>{
+    const tile=document.createElement("div");
+    tile.className="tile";
+
+    const inner=document.createElement("div");
+    inner.className="inner";
+
+    const front=document.createElement("div");
+    front.className="front";
+    front.textContent="❓";
+
+    const back=document.createElement("div");
+    back.className="back";
+    back.style.backgroundImage=`url(${url})`;
+
+    inner.append(front, back);
+    tile.append(inner);
+
+    tile.onclick = () => {
+      unlockAudio();
+      flip(inner,url);
+    };
+
     grid.appendChild(tile);
+    tiles.push({inner,url,matched:false});
   });
 }
 
-function flipTile(tile){
-  if(lock || tile.classList.contains('flipped')) return;
-  tile.classList.add('flipped');
+function flip(inner,url){
+  if(lockBoard || inner.classList.contains("flipped")) return;
+
+  inner.classList.add("flipped");
 
   if(!firstTile){
-    firstTile=tile;
+    firstTile={inner,url};
+    return;
+  }
+
+  secondTile={inner,url};
+  lockBoard=true;
+
+  if(firstTile.url === secondTile.url){
+    tiles.filter(t=>t.url===url).forEach(t=>t.matched=true);
+
+    playSound(meow, 1000);
+
+    confetti({particleCount:100, spread:100});
+
+    reset();
   } else {
-    secondTile=tile;
-    lock=true;
+    playSound(wrong, 1000);
 
-    const firstImg = firstTile.querySelector('img').src;
-    const secondImg = secondTile.querySelector('img').src;
-
-    if(firstImg === secondImg){
-      playSound(meow,1000);
-      matchedCount+=2;
-      confetti({particleCount:50,spread:70,origin:{y:0.6}});
-      firstTile=null;
-      secondTile=null;
-      lock=false;
-
-      if(matchedCount === tilesArray.length){
-        playSound(purr,2000);
-        showModal();
-      }
-    } else {
-      playSound(wrong,800);
-      setTimeout(()=>{
-        firstTile.classList.remove('flipped');
-        secondTile.classList.remove('flipped');
-        firstTile=null;
-        secondTile=null;
-        lock=false;
-      },1500);
-    }
+    setTimeout(()=>{
+      firstTile.inner.classList.remove("flipped");
+      secondTile.inner.classList.remove("flipped");
+      reset();
+    },1500);
   }
 }
 
-function showModal(){ modal.style.display='flex'; }
+function reset(){
+  [firstTile,secondTile]=[null,null];
+  lockBoard=false;
 
-nextRoundBtn.addEventListener('click',()=>{
-  modal.style.display='none';
-  createGrid();
-});
-reshuffleBtn.addEventListener('click',()=>{
-  modal.style.display='none';
-  createGrid();
-});
+  if(tiles.filter(t=>t.matched).length===16){
+    setTimeout(()=>{
+      playSound(purr, 1000);
 
-// initial grid
-createGrid();
+      confetti({particleCount:250, spread:120});
+
+      modal.classList.add("show");
+    },500);
+  }
+}
+
+function restart(){
+  modal.classList.remove("show");
+  start();
+}
+
+start();
 </script>
+
 </body>
 </html>
