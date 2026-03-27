@@ -2,283 +2,212 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Deja-Mew 🐱🐱🐱</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<title>Cat Memory Game</title>
 <style>
-body {
-  font-family: Arial, sans-serif;
-  background: #ff85a2; /* darker pink background */
-  text-align: center;
-  margin: 0;
-}
-
-h1 {
-  margin: 16px 0;
-  color: white;
-}
-
-/* Grid */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  padding: 12px;
-  max-width: 600px;
-  margin: auto;
-}
-
-/* Bigger tiles on desktop */
-@media (min-width: 900px) {
-  .grid {
-    max-width: 700px;
+  body {
+    margin: 0;
+    font-family: sans-serif;
+    background-color: #ff99c8; /* darker pink background */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    padding: 20px 0;
   }
-}
-
-.tile {
-  aspect-ratio: 1;
-  perspective: 1000px;
-}
-
-.inner {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  transition: transform 0.5s;
-  transform-style: preserve-3d;
-  border-radius: 14px;
-}
-
-.inner.flipped {
-  transform: rotateY(180deg);
-}
-
-/* Light pink tiles */
-.front, .back {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 14px;
-  backface-visibility: hidden;
-}
-
-.front {
-  background: #ffe5ec; /* near-white pink */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30px;
-}
-
-.back {
-  transform: rotateY(180deg);
-  background-size: cover;
-  background-position: center;
-}
-
-/* Modal */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  visibility: hidden;
-}
-
-.modal.show {
-  visibility: visible;
-}
-
-.modal-content {
-  background: white;
-  padding: 25px;
-  border-radius: 16px;
-  text-align: center;
-  animation: pop 0.3s ease;
-}
-
-@keyframes pop {
-  from { transform: scale(0.7); }
-  to { transform: scale(1); }
-}
-
-button {
-  margin: 10px;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 10px;
-  background: #ff69b4;
-  color: white;
-  cursor: pointer;
-}
+  h1 {
+    color: #fff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    width: 90vw;
+    max-width: 600px;
+  }
+  .tile {
+    background-color: #ffe6f0;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+  .tile img {
+    width: 90%;
+    height: 90%;
+    object-fit: cover;
+    display: none;
+  }
+  .tile.flipped img {
+    display: block;
+  }
+  /* Modal overlay */
+  .modal-overlay {
+    position: fixed;
+    top:0; left:0;
+    width:100%;
+    height:100%;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+  }
+  .modal {
+    background: #fff;
+    padding: 20px 30px;
+    border-radius: 12px;
+    text-align: center;
+  }
+  .modal button {
+    margin: 10px;
+    padding: 10px 20px;
+    border:none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #ff99c8;
+    color: #fff;
+    font-weight: bold;
+  }
 </style>
 </head>
-
 <body>
 
-<h1>Deja-Mew 🐱🐱🐱</h1>
-<div class="grid" id="grid"></div>
+<h1>Cat Memory Game</h1>
+<div class="grid"></div>
 
-<!-- Sounds (reliable sources) -->
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>Round Complete!</h2>
+    <button id="nextRound">Next Level</button>
+    <button id="reshuffle">Reshuffle</button>
+  </div>
+</div>
+
+<!-- Sounds -->
 <audio id="meow" src="meow.mp3"></audio>
 <audio id="wrong" src="wrong.mp3"></audio>
 <audio id="purr" src="purr.mp3"></audio>
 
-<!-- Modal -->
-<div class="modal" id="modal">
-  <div class="modal-content">
-    <h2>🎉 You did it!</h2>
-    <p>All the kitties found 🐱💖</p>
-    <button onclick="restart()">Play Again</button>
-  </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
 <script>
-const grid = document.getElementById("grid");
-const modal = document.getElementById("modal");
+const grid = document.querySelector('.grid');
+const modal = document.getElementById('modal');
+const nextRoundBtn = document.getElementById('nextRound');
+const reshuffleBtn = document.getElementById('reshuffle');
 
-const meow = document.getElementById("meow");
-const wrong = document.getElementById("wrong");
-const purr = document.getElementById("purr");
+const meow = document.getElementById('meow');
+const wrong = document.getElementById('wrong');
+const purr = document.getElementById('purr');
 
-let tiles=[], firstTile=null, secondTile=null, lockBoard=false;
-let audioReady = false;
+// Replace these URLs with your local GIFs or add them to the folder
+const catGIFs = [
+  'cat1.gif', 'cat2.gif', 'cat3.gif', 'cat4.gif',
+  'cat5.gif', 'cat6.gif', 'cat7.gif', 'cat8.gif'
+];
 
-// Unlock audio
-function unlockAudio() {
-  if (audioReady) return;
+// Double array for pairs
+let tilesArray = [...catGIFs, ...catGIFs];
+let firstTile = null;
+let secondTile = null;
+let lock = false;
+let matchedCount = 0;
 
-  [meow, wrong, purr].forEach(a => {
-    a.play().then(() => {
-      a.pause();
-      a.currentTime = 0;
-    }).catch(()=>{});
-  });
-
-  audioReady = true;
+function shuffle(array) {
+  return array.sort(() => 0.5 - Math.random());
 }
 
-function playSound(audio, duration = 1000){ // duration in ms
-    if(!audio) return;
-    audio.currentTime = 0;
-    audio.play().catch(()=>{});
-
-    // Stop after duration
-    setTimeout(()=>{
-        audio.pause();
-        audio.currentTime = 0;
-    }, duration);
+function playSound(audio, duration = 1200) {
+  audio.currentTime = 0;
+  audio.play().catch(()=>{});
+  setTimeout(() => { audio.pause(); audio.currentTime = 0; }, duration);
 }
 
-// Fetch unique GIFs
-async function getGIFs(n) {
-  const set = new Set();
-  while(set.size < n){
-    const res = await fetch(`https://api.thecatapi.com/v1/images/search?limit=${n}&mime_types=gif`);
-    const data = await res.json();
-    data.forEach(d => set.add(d.url));
-  }
-  return [...set].slice(0,n);
-}
+function createGrid() {
+  grid.innerHTML = '';
+  matchedCount = 0;
+  firstTile = null;
+  secondTile = null;
+  lock = false;
 
-function shuffle(a){ return a.sort(()=>Math.random()-0.5); }
+  const shuffled = shuffle(tilesArray);
 
-async function start(){
-  const gifs = await getGIFs(8);
-  const images = shuffle([...gifs, ...gifs]);
-
-  grid.innerHTML="";
-  tiles=[]; firstTile=null; secondTile=null; lockBoard=false;
-
-  images.forEach(url=>{
-    const tile=document.createElement("div");
-    tile.className="tile";
-
-    const inner=document.createElement("div");
-    inner.className="inner";
-
-    const front=document.createElement("div");
-    front.className="front";
-    front.textContent="❓";
-
-    const back=document.createElement("div");
-    back.className="back";
-    back.style.backgroundImage=`url(${url})`;
-
-    inner.append(front, back);
-    tile.append(inner);
-
-    tile.onclick = () => {
-      unlockAudio();
-      flip(inner,url);
-    };
-
+  shuffled.forEach(src => {
+    const tile = document.createElement('div');
+    tile.classList.add('tile');
+    const img = document.createElement('img');
+    img.src = src;
+    tile.appendChild(img);
+    tile.addEventListener('click', () => flipTile(tile));
     grid.appendChild(tile);
-    tiles.push({inner,url,matched:false});
   });
 }
 
-function flip(inner,url){
-  if(lockBoard || inner.classList.contains("flipped")) return;
+function flipTile(tile) {
+  if (lock || tile.classList.contains('flipped')) return;
 
-  inner.classList.add("flipped");
+  tile.classList.add('flipped');
 
-  if(!firstTile){
-    firstTile={inner,url};
-    return;
-  }
-
-  secondTile={inner,url};
-  lockBoard=true;
-
-  if(firstTile.url === secondTile.url){
-    tiles.filter(t=>t.url===url).forEach(t=>t.matched=true);
-
-    playSound(meow, 1000);
-
-    confetti({particleCount:100, spread:100});
-
-    reset();
+  if (!firstTile) {
+    firstTile = tile;
   } else {
-    playSound(wrong, 1000);
+    secondTile = tile;
+    lock = true;
 
-    setTimeout(()=>{
-      firstTile.inner.classList.remove("flipped");
-      secondTile.inner.classList.remove("flipped");
-      reset();
-    },1500);
+    const firstImg = firstTile.querySelector('img').src;
+    const secondImg = secondTile.querySelector('img').src;
+
+    if (firstImg === secondImg) {
+      playSound(meow, 1000);
+      matchedCount += 2;
+      confetti({
+        particleCount: 50,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+      firstTile = null;
+      secondTile = null;
+      lock = false;
+
+      if (matchedCount === tilesArray.length) {
+        playSound(purr, 2000);
+        showModal();
+      }
+    } else {
+      playSound(wrong, 800);
+      setTimeout(() => {
+        firstTile.classList.remove('flipped');
+        secondTile.classList.remove('flipped');
+        firstTile = null;
+        secondTile = null;
+        lock = false;
+      }, 1500);
+    }
   }
 }
 
-function reset(){
-  [firstTile,secondTile]=[null,null];
-  lockBoard=false;
-
-  if(tiles.filter(t=>t.matched).length===16){
-    setTimeout(()=>{
-      playSound(purr, 1000);
-
-      confetti({particleCount:250, spread:120});
-
-      modal.classList.add("show");
-    },500);
-  }
+function showModal() {
+  modal.style.display = 'flex';
 }
 
-function restart(){
-  modal.classList.remove("show");
-  start();
-}
+nextRoundBtn.addEventListener('click', () => {
+  modal.style.display = 'none';
+  createGrid();
+});
 
-start();
+reshuffleBtn.addEventListener('click', () => {
+  modal.style.display = 'none';
+  createGrid();
+});
+
+// Initial grid
+createGrid();
 </script>
-
 </body>
 </html>
