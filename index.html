@@ -5,10 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Deja Mew</title>
 <style>
+/* Nice retro/fun font */
+@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap');
+
 body {
   margin: 0;
-  font-family: sans-serif;
-  background-color: #ff80b3; /* darker pink background */
+  font-family: 'Comic Neue', sans-serif;
+  background-color: #ff6699; /* restore previous darker pink */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -16,37 +19,60 @@ body {
   min-height: 100vh;
   padding: 20px 0;
 }
+
 h1 {
   color: #fff;
   margin-bottom: 20px;
+  text-shadow: 2px 2px #ff80b3;
 }
+
 .grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  gap: 12px;
   width: 90vw;
   max-width: 600px;
+  perspective: 1000px; /* for flip effect */
 }
+
 .tile {
-  background-color: #ffe6f0; /* near-white pink tiles */
+  background-color: #ffe6f0; /* light pink tiles */
   aspect-ratio: 1 / 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
   border-radius: 8px;
-  overflow: hidden;
+  cursor: pointer;
   position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.6s;
 }
+
+.tile.flipped {
+  transform: rotateY(180deg);
+}
+
 .tile img {
   width: 90%;
   height: 90%;
   object-fit: cover;
-  display: none;
-}
-.tile.flipped img {
+  position: absolute;
+  backface-visibility: hidden;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: block;
 }
+
+.tile::before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: #ffe6f0;
+  border-radius: 8px;
+  backface-visibility: hidden;
+  transform: rotateY(0deg);
+}
+
+/* Modal styles */
 .modal-overlay {
   position: fixed;
   top:0; left:0;
@@ -109,7 +135,7 @@ let secondTile = null;
 let lock = false;
 let matchedCount = 0;
 
-const gridSize = 4; // 4x4
+const gridSize = 4; // 4x4 grid
 let tilesArray = [];
 
 function playSound(audio, duration=1200){
@@ -125,7 +151,7 @@ async function fetchCatGIFs() {
   return data.map(cat=>cat.url);
 }
 
-// Ensure no adjacent duplicates
+// Arrange so no adjacent duplicates
 function arrangeNoAdjacent(array){
   const size = gridSize*gridSize;
   const final = [];
