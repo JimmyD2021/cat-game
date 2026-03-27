@@ -8,7 +8,7 @@
 body {
   margin: 0;
   font-family: sans-serif;
-  background-color: #ff80b3; /* darker pink background restored */
+  background-color: #ff80b3; /* darker pink background */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -37,10 +37,6 @@ h1 {
   border-radius: 8px;
   overflow: hidden;
   position: relative;
-  transition: transform 0.3s;
-}
-.tile.flipped {
-  transform: rotateY(180deg);
 }
 .tile img {
   width: 90%;
@@ -108,21 +104,13 @@ const meow = document.getElementById('meow');
 const wrong = document.getElementById('wrong');
 const purr = document.getElementById('purr');
 
-// Use your original animated GIFs
-const catGIFs = [
-  'cat1.gif','cat2.gif','cat3.gif','cat4.gif',
-  'cat5.gif','cat6.gif','cat7.gif','cat8.gif'
-];
-
-let tilesArray = [...catGIFs, ...catGIFs];
 let firstTile = null;
 let secondTile = null;
 let lock = false;
 let matchedCount = 0;
 
-function shuffle(array) {
-  return array.sort(() => 0.5 - Math.random());
-}
+const gridSize = 4; // 4x4
+let tilesArray = [];
 
 function playSound(audio, duration=1200){
   audio.currentTime = 0;
@@ -130,48 +118,56 @@ function playSound(audio, duration=1200){
   setTimeout(()=>{audio.pause(); audio.currentTime=0;}, duration);
 }
 
-// Create grid ensuring no horizontal/vertical adjacency
-function createGrid() {
-  grid.innerHTML = '';
-  matchedCount = 0;
-  firstTile = null;
-  secondTile = null;
-  lock = false;
+// Fetch 8 random cat GIFs
+async function fetchCatGIFs() {
+  const res = await fetch('https://api.thecatapi.com/v1/images/search?limit=8&mime_types=gif');
+  const data = await res.json();
+  return data.map(cat=>cat.url);
+}
 
-  const shuffledTiles = [...tilesArray];
-  const finalTiles = [];
-  const size = 4;
-
-  for (let i=0;i<size*size;i++){
+// Ensure no adjacent duplicates
+function arrangeNoAdjacent(array){
+  const size = gridSize*gridSize;
+  const final = [];
+  const temp = [...array];
+  for(let i=0;i<size;i++){
     let valid=false;
     let attempts=0;
-    while(!valid && attempts<100){
-      const idx = Math.floor(Math.random()*shuffledTiles.length);
-      const tile = shuffledTiles[idx];
-
-      const row = Math.floor(i/size);
-      const col = i%size;
-
-      const left = col>0 ? finalTiles[i-1] : null;
-      const top = row>0 ? finalTiles[i-size] : null;
-
-      if(tile !== left && tile !== top){
-        finalTiles.push(tile);
-        shuffledTiles.splice(idx,1);
+    while(!valid && attempts<50){
+      const idx = Math.floor(Math.random()*temp.length);
+      const val = temp[idx];
+      const row = Math.floor(i/gridSize);
+      const col = i%gridSize;
+      const left = col>0 ? final[i-1] : null;
+      const top = row>0 ? final[i-gridSize] : null;
+      if(val!==left && val!==top){
+        final.push(val);
+        temp.splice(idx,1);
         valid=true;
       }
       attempts++;
     }
-    if(!valid){
-      finalTiles.push(shuffledTiles.pop());
-    }
+    if(!valid) final.push(temp.pop());
   }
+  return final;
+}
 
-  finalTiles.forEach(src=>{
-    const tile = document.createElement('div');
+async function createGrid(){
+  grid.innerHTML='';
+  matchedCount=0;
+  firstTile=null;
+  secondTile=null;
+  lock=false;
+
+  const cats = await fetchCatGIFs();
+  tilesArray = [...cats, ...cats]; // 2 of each
+  tilesArray = arrangeNoAdjacent(tilesArray);
+
+  tilesArray.forEach(src=>{
+    const tile=document.createElement('div');
     tile.classList.add('tile');
-    const img = document.createElement('img');
-    img.src = src;
+    const img=document.createElement('img');
+    img.src=src;
     tile.appendChild(img);
     tile.addEventListener('click',()=>flipTile(tile));
     grid.appendChild(tile);
